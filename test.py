@@ -7,3 +7,6 @@ def gamma(params):
 
 params = [1,2,3]
 print gamma(params)
+
+if __name__=="__main__":
+    print("test!")
