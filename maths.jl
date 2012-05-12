@@ -81,12 +81,12 @@ end
 # Dirichlet Multinomial
 type DirichletMult
   alpha::Float64
-  counts::HashTable # TODO HashTable{String, Int64}
+  counts::Dict # TODO Dict{String, Int64}
   total::Int64
 
   # Constructors
   DirichletMult(alpha, counts, total) = new(alpha, counts, total)
-  DirichletMult(alpha) = DirichletMult(alpha, HashTable(), 0)
+  DirichletMult(alpha) = DirichletMult(alpha, Dict(), 0)
 end
 
 function observe(p::DirichletMult, k, v::Int64)
@@ -114,11 +114,11 @@ end
 type FastDirichletMultArray
   alpha::Float64
   nd::Int64 # number of distributions
-  counts::HashTable # TODO HashTable{String, Int64}
+  counts::Dict # TODO Dict{String, Int64}
   totals::Vector{Int64}
 
   FastDirichletMultArray(alpha,nd,counts,totals) = new(alpha,nd,counts,totals)
-  FastDirichletMultArray(alpha,nd) = FastDirichletMultArray(alpha,nd,HashTable(),zeros(Int64,nd))
+  FastDirichletMultArray(alpha,nd) = FastDirichletMultArray(alpha,nd,Dict(),zeros(Int64,nd))
 end
 
 function observe(p::FastDirichletMultArray, i::Int64, k, v::Int64)

@@ -12,7 +12,7 @@ load("dump_dict.jl")
 filename = "1984.en"
 gold_cols = read_data(filename)
 gold_tags = nothing ## TODO: revise code
-hyperparameters = HashTable()
+hyperparameters = Dict()
 seq = false
 suffix = false
 prefix = false
