@@ -15,13 +15,10 @@ const GAMMA_NUM_UNIQUE_SEGS = 1.0/10
 const GAMMA_SEG_LEN = 1.0/2.0
 const GAMMA_NUM_SEGS_PER_WORD = 1.0/4.0
 const GAMMA_AFFIX_PER_WORD = 1.0/2.0
-#const NUM_TAGS = 1
-#const VALENCE_MODEL = 0
 const LOG_GEOM_TRUNC_NUM_SEGS_PER_WORD = LogGeometricTruncated(GAMMA_NUM_SEGS_PER_WORD, MAX_SPANS)
 const LOG_GEOM_TRUNC_NUM_AFFIX_PER_WORD = LogGeometricTruncated(GAMMA_AFFIX_PER_WORD, MAX_AFFIX)
 const PAIRWISE_SUFFIX_LOGPROB = {nothing=>log(0.3), true=>log(0.6), false=>log(0.1)}
 const PAIRWISE_PREFIX_LOGPROB = {nothing=>log(0.05), true=>log(0.9), false=>log(0.05)}
 const USE_STEM_LENGTH_CONSTRAINT = true
 const X_GAMMA_NUM_UNIQUE_SEGS = {"stem"=>1e-4, "prefix"=>1.0/1.1, "suffix"=>1.0/1.1}
-#const SEPARATE_LEXICON_SIZE = true
 const FROZEN_RE = r"^(\d)+"
