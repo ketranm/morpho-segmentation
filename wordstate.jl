@@ -101,7 +101,9 @@ end
 
 function segments(ws::WordState)
   # segment the word according to its spans
-  map(s -> ws.word[s[1]:s[2]], ws.spans)
+  # fixed unicode issue
+  cw = chars(ws.word)
+  map(s -> string(cw[s[1]:s[2]]...), ws.spans)
 end
 
 function get_last_suffix(w::String, spans::Vector, stem_index::Int)
