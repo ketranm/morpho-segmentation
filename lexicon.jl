@@ -531,13 +531,12 @@ function log_uprob_of_new_word_state_fast(lexicon_state::LexiconState, w::String
   unique_segs = Set{String}()
   # DEGUB: Julia hasn't supported fully UTF-8 yet
   # so I have to do some trick
+  # fixed unicode issue
+  cw = chars(w)
   for s = spans
-    try
-      push(segs, w[ s[1]:s[2] ])
-      add(unique_segs, w[ s[1]:s[2] ])
-    catch
-      # ignore for now
-    end
+    _seg = string(cw[ s[1]:s[2] ]...)
+    push(segs, _seg)
+    add(unique_segs, _seg)
   end
   new_unique_segs = ref(String)
   for s = unique_segs
@@ -573,12 +572,9 @@ function log_uprob_of_new_word_state_fast(lexicon_state::LexiconState, w::String
     log_prob_lexicon += log_geometric(GAMMA_NUM_UNIQUE_SEGS, min_num_segs - 1) #TODO: -1 OR NOT
   end
   for s = new_unique_segs
-  	if strlen(s)==0
-  	println(w,"\t",new_unique_segs)
-  	end
     log_prob_lexicon += log_prob_segment_length( strlen(s) )
   end
-  
+
   if lexicon_state.VALENCE_MODEL == 0
     log_prob_lexicon += LOG_GEOM_TRUNC_NUM_SEGS_PER_WORD[length(spans)+1] # Critical death
   elseif lexicon_state.VALENCE_MODEL == 1
@@ -678,7 +674,7 @@ end
 
 function get_tag(lexicon_state::LexiconState, w::String)
   if w == ""
-    return 0
+    return lexicon_state.NUM_TAGS+1
   else
     return lexicon_state.words[w].tag
   end
