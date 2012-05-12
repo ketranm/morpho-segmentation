@@ -263,7 +263,7 @@ function num_suffixes_per_word(lexicon_state::LexiconState)
   d = ref(Int)
   for (w, ws) = lexicon_state.words
     if ws.to_segment
-      push(d, numel(ws.spans) - ws.stem_index)
+      push(d, length(ws.spans) - ws.stem_index)
     end
   end
   return d
