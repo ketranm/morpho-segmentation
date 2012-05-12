@@ -1,2 +1,5 @@
 To run the program
 julia test.jl
+
+TODO:
+- parallel sampling
