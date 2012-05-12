@@ -1,7 +1,7 @@
-function run_gibbs(phrase_counts::Vector{Int}, phrases::Vector{String}, gold, gold_tags, seq::Bool, use_seq_suffix::Bool, use_seq_prefix::Bool, numit::Int, fix_tags::Bool, fix_segs::Bool, fix_stem::Bool, init_tag::String, init_seg::String, init_stem::String, state0, outfile, sep_lex_size) # flags?
+function run_gibbs(phrase_counts::Vector{Int}, phrases::Vector{String}, gold, gold_tags, seq::Bool, use_seq_suffix::Bool, use_seq_prefix::Bool, numit::Int, fix_tags::Bool, fix_segs::Bool, fix_stem::Bool, init_tag::String, init_seg::String, init_stem::String, state0, outfile::String, sep_lex_size) # flags?
   wordcounts = count_word_types(phrase_counts, phrases)
   (post_lexicon, tag_mapping) = (nothing, nothing)
-  seq_data = (seq ? phrases : nothing)
+  seq_data = (seq ? phrases : ref(String))
 
   # construct new state
   state = init_lexicon_state(wordcounts, seq_data, gold, post_lexicon, init_tag, init_seg, init_stem, num_tags, state0, sep_lex_size, use_seq_suffix, use_seq_prefix)
@@ -16,7 +16,6 @@ function run_gibbs(phrase_counts::Vector{Int}, phrases::Vector{String}, gold, go
       to_stem = old_ws.to_stem
       to_tag = old_ws.to_tag
       all_possible_spans = nothing
-
       if fix_segs || (! to_segment)
         all_possible_spans = {old_ws.spans}
       else # TODO: add flags option
@@ -53,7 +52,7 @@ function run_gibbs(phrase_counts::Vector{Int}, phrases::Vector{String}, gold, go
           end
         end
       end
-      
+
       nt = length(all_possible_tags)
       # considering all hypothesis
       log_unnormalized_posterior = ref(Float64)
@@ -78,7 +77,7 @@ function run_gibbs(phrase_counts::Vector{Int}, phrases::Vector{String}, gold, go
       add_word_state(state, new_ws)
     end # for wordcounts
     print_stats(it, state)
+    dump_dict(state, outfile) # write out dictionary
   end # numit
-
   return state
 end

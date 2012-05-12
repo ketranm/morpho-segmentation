@@ -7,7 +7,7 @@ type LexiconState
   x_counter_seg::Dict{String, Dict{String, Int}} # affix, segs distributed according to POS
   x_fast_distrs_seg_gt::Dict{String, FastDirichletMultArray}
   distr_type_tag::DirichletMult # tag distribution
-  tokens::Union(Vector{String}, Nothing) # tokens
+  tokens::Vector{String} # tokens
   word_locations::Union(Dict{String, Vector{Int}}, Nothing) # locations of words, used for POS model
   fast_distr_token_gt::Union(FastDirichletMultArray, Nothing)
   distrs_transition::Union(Vector{FastDirichletMult}, Nothing)
@@ -74,7 +74,6 @@ function get_seq_token_counts(words::Dict{String, WordState}, tokens::Vector{Str
 end
 
 function init_lexicon_state(word_freq::Vector, seq_data, gold, tag_lexicon, init_tag::String, init_seg::String, init_stem::String, num_tags, state0, sep_lex_size::Bool, use_seq_suffix::Bool, use_seq_prefix::Bool)
-
   words = Dict{String, WordState}()
   NUM_TAGS = num_tags
   SEPARATE_LEXICON_SIZE = sep_lex_size
@@ -97,14 +96,13 @@ function init_lexicon_state(word_freq::Vector, seq_data, gold, tag_lexicon, init
   end
 
   for (word, freq) = word_freq
-    @assert word != ""
+    @assert strlen(word) > 0
     @assert word != BOUNDARY_TOKEN
     @assert freq >= 0
     to_freeze = matches(FROZEN_RE, word)
     to_segment = ! to_freeze
     to_stem = true
     to_tag = true
-
     # valid tag in [1:NUM_TAGS]
     # tag = NUM_TAGS + 1 used for start, stop state
     # tag configuration
@@ -116,7 +114,6 @@ function init_lexicon_state(word_freq::Vector, seq_data, gold, tag_lexicon, init
     else
       @assert false
     end
-
     # spans configuration
     spans = nothing
     if init_seg == "whole-word"
@@ -143,7 +140,7 @@ function init_lexicon_state(word_freq::Vector, seq_data, gold, tag_lexicon, init
 
   (counter_seg, x_counter_seg, x_fast_distrs_seg_gt, distr_type_tag) = get_counts(words, NUM_TAGS)
   tokens = seq_data
-  if tokens != nothing
+  if ! isempty(tokens)
     word_locations = get_word_locations(tokens)
     fast_distr_token_gt, distrs_transition = get_seq_token_counts(words, tokens, NUM_TAGS)
   else
@@ -192,8 +189,7 @@ function observe_word_state(lexicon_state::LexiconState, ws::WordState, count_::
       if c[s] == 0 del(c,s) end
     end
   end
-
-  if lexicon_state.tokens != nothing 
+  if ! isempty(lexicon_state.tokens)
     for i = lexicon_state.word_locations[w]
       @assert lexicon_state.tokens[i] == w
       @assert w != BOUNDARY_TOKEN
@@ -228,6 +224,7 @@ end
 function add_word_state(lexicon_state::LexiconState, ws::WordState)
   w = ws.word
   @assert ! has(lexicon_state.words, w) # make sure the word is deleted before
+
   observe_word_state(lexicon_state, ws, 1)
   lexicon_state.words[w] = copy(ws) ## need deepcopy?
 end
@@ -618,7 +615,7 @@ function log_uprob_of_new_word_state_fast(lexicon_state::LexiconState, w::String
     end
   end
   # token-level pairwise suffix
-  if lexicon_state.tokens != nothing && (lexicon_state.USE_PAIRWISE_SUFFIXES || lexicon_state.USE_PAIRWISE_PREFIXES)
+  if ! isempty(lexicon_state.tokens) && (lexicon_state.USE_PAIRWISE_SUFFIXES || lexicon_state.USE_PAIRWISE_PREFIXES)
     log_prob_pairwise_suffix = 0.0
     log_prob_pairwise_prefix = 0.0
     for i=lexicon_state.word_locations[w]
@@ -682,7 +679,7 @@ end
 
 function calculate_log_tag_probs(lexicon_state::LexiconState, w::String, all_possible_tags)
   log_probs = get_log_tag_prior(lexicon_state, all_possible_tags)
-  if lexicon_state.tokens != nothing
+  if ! isempty(lexicon_state.tokens)
     log_emission_probs = log_token_emission(lexicon_state, w, all_possible_tags)
     log_trans_probs = ref(Float64)
     for t = all_possible_tags
