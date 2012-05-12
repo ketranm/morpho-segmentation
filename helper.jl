@@ -30,35 +30,24 @@ end
 # zipper
 function zipper(a::Vector, b::Vector, c::Vector, d::Vector)
   @assert length(a) == length(b) == length(c) == length(d)
-  z = {}
-  k = length(a)
-  for i = 1:k
-    push(z, (a[i],b[i],c[i],d[i]))
-  end
-  return z
+  return {(a[i],b[i],c[i],d[i]) for i = 1:length(a)}
 end
 
-# general zipper but with constraint on type
-function zipper(v::Vector) # abstract data type T
+# general zipper
+function zipper(v::Vector)
   @assert length(v) > 1
   l = length(v)
   k = length(v[1])
   for j = 2:l
     @assert length(v[j]) == k
   end
-  z = {}
-  for i = 1:k
-    push(z, map(x -> v[x][i], [1:l]))
-  end
-  return z
+  z = { {v[j][i] for j = 1:l} for i = 1:k }
 end
 
 function sort_by_val(h::Dict{String, Int})
-  temp = {}
-  for (k,v) = h
-    push(temp, (v,k))
-  end
-  return sort(temp)
+  # sort in descending order
+  temp = {(v,k) for (k,v) = h}
+  return sortr(temp)
 end
 
 function most_common(h::Dict{String, Int}, n::Int)
@@ -66,7 +55,6 @@ function most_common(h::Dict{String, Int}, n::Int)
     return []
   else
     @assert n >= 1
-    sorted_array = sort_by_val(h)
-    return reverse(sorted_array)[1:n]
+    return sort_by_val(h)[1:n]
   end
 end
