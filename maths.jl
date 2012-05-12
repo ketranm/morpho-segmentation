@@ -63,7 +63,6 @@ function observe(p::FastDirichletMult, k::Int64, v::Int64)
   @assert k >= 1
   p.counts[k] += v
   p.total += v
-  #p
 end
 
 function log_prob(p::FastDirichletMult, k::Int64)
