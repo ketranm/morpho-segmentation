@@ -1,6 +1,6 @@
 # count number of unique elements in array
 function num_unique(v::Vector)
-  d = HashTable()
+  d = Dict()
   for e=v
     if ! has(d,e)
       d[e] = nothing
@@ -14,7 +14,7 @@ function read_data(filename::String)
   fh = open(filename)
   phrase_counts = ref(Int64)
   phrases = ref(String)
-  for line=LineIterator(fh)
+  for line=EachLine(fh)
     fields = split(line)
     push(phrase_counts, parse_int(fields[1]))
     push(phrases, fields[2])
@@ -23,7 +23,7 @@ function read_data(filename::String)
 end
 
 # simple counter
-function counter(collection::HashTable{String, Int64}, w::String)
+function counter(collection::Dict{String, Int64}, w::String)
   collection[w] = get(collection, w, 0) + 1
 end
 
@@ -53,7 +53,7 @@ function zipper(v::Vector) # abstract data type T
   return z
 end
 
-function sort_by_val(h::HashTable{String, Int})
+function sort_by_val(h::Dict{String, Int})
   temp = {}
   for (k,v) = h
     push(temp, (v,k))
@@ -61,7 +61,7 @@ function sort_by_val(h::HashTable{String, Int})
   return sort(temp)
 end
 
-function most_common(h::HashTable{String, Int}, n::Int)
+function most_common(h::Dict{String, Int}, n::Int)
   if n == 0
     return []
   else

@@ -1,14 +1,14 @@
 # LexiconState
 type LexiconState
   # all information of a state
-  words::HashTable{String, WordState}
+  words::Dict{String, WordState}
   word_freq::Vector # word-type frequency
-  counter_seg::HashTable{String, Int} # counter for affixes
-  x_counter_seg::HashTable{String, HashTable{String, Int}} # affix, segs distributed according to POS
-  x_fast_distrs_seg_gt::HashTable{String, FastDirichletMultArray}
+  counter_seg::Dict{String, Int} # counter for affixes
+  x_counter_seg::Dict{String, Dict{String, Int}} # affix, segs distributed according to POS
+  x_fast_distrs_seg_gt::Dict{String, FastDirichletMultArray}
   distr_type_tag::DirichletMult # tag distribution
   tokens::Union(Vector{String}, Nothing) # tokens
-  word_locations::Union(HashTable{String, Vector{Int}}, Nothing) # locations of words, used for POS model
+  word_locations::Union(Dict{String, Vector{Int}}, Nothing) # locations of words, used for POS model
   fast_distr_token_gt::Union(FastDirichletMultArray, Nothing)
   distrs_transition::Union(Vector{FastDirichletMult}, Nothing)
   USE_PAIRWISE_SUFFIXES::Bool
@@ -19,14 +19,14 @@ type LexiconState
   SEPARATE_LEXICON_SIZE::Bool
 end
 
-function get_counts(words::HashTable{String, WordState}, num_tags::Int)
+function get_counts(words::Dict{String, WordState}, num_tags::Int)
   NUM_TAGS = num_tags
   distr_type_tag = DirichletMult(ALPHA_TAG_PRIOR) # tag distribution
-  counter_seg = HashTable{String, Int}() # counter for segs
-  x_counter_seg = HashTable{String, HashTable{String, Int}}() # seg is conditioned on AFFIX
-  x_fast_distrs_seg_gt = HashTable{String, FastDirichletMultArray}() # Distribution of seg over POS conditioned on AFFIX
+  counter_seg = Dict{String, Int}() # counter for segs
+  x_counter_seg = Dict{String, Dict{String, Int}}() # seg is conditioned on AFFIX
+  x_fast_distrs_seg_gt = Dict{String, FastDirichletMultArray}() # Distribution of seg over POS conditioned on AFFIX
   for affix = POSSIBLE_AFFIXES
-    x_counter_seg[affix] = HashTable{String, Int}() # count for affix
+    x_counter_seg[affix] = Dict{String, Int}() # count for affix
     x_fast_distrs_seg_gt[affix] = FastDirichletMultArray(ALPHA_SEG, NUM_TAGS+1)
   end
 
@@ -50,7 +50,7 @@ function get_counts(words::HashTable{String, WordState}, num_tags::Int)
   (counter_seg, x_counter_seg, x_fast_distrs_seg_gt, distr_type_tag)
 end
 
-function get_seq_token_counts(words::HashTable{String, WordState}, tokens::Vector{String}, num_tags::Int)
+function get_seq_token_counts(words::Dict{String, WordState}, tokens::Vector{String}, num_tags::Int)
   # Given tokens, words, and number of valid tags
   # compute emission and transition probability
   NUM_TAGS = num_tags
@@ -75,7 +75,7 @@ end
 
 function init_lexicon_state(word_freq::Vector, seq_data, gold, tag_lexicon, init_tag::String, init_seg::String, init_stem::String, num_tags, state0, sep_lex_size::Bool, use_seq_suffix::Bool, use_seq_prefix::Bool)
 
-  words = HashTable{String, WordState}()
+  words = Dict{String, WordState}()
   NUM_TAGS = num_tags
   SEPARATE_LEXICON_SIZE = sep_lex_size
 
@@ -158,7 +158,7 @@ end
 function get_word_locations(tokens::Vector{String})
   # return a hashtable where each key is a token
   # and its values is a vector of its possitions in text
-  d = HashTable{String, Vector{Int}}()
+  d = Dict{String, Vector{Int}}()
   for i=1:length(tokens)
     t = tokens[i]
     if t != BOUNDARY_TOKEN
@@ -241,7 +241,7 @@ end
 
 function to_segmented_lexicon(lexicon_state::LexiconState)
   # return dictionary of word and its segmentation
-  d = HashTable{String, Vector{String}}()
+  d = Dict{String, Vector{String}}()
   for (w,ws) = lexicon_state.words
     s = segments(ws)
     d[w] = s
@@ -342,7 +342,7 @@ end
 
 function get_affix_segment_lengths(lexicon_state::LexiconState)
   # category segments into affix classes
-  d = HashTable{String, Vector{Int}}()
+  d = Dict{String, Vector{Int}}()
   # do trick here, initiate d first
   for x = POSSIBLE_AFFIXES
     d[x] = ref(Int)
@@ -360,7 +360,7 @@ function get_affix_segment_lengths(lexicon_state::LexiconState)
 end
 
 function get_min_affix_vocab_size(lexicon_state::LexiconState, segs, stem_index::Int)
-  affixes = HashTable{String, Set{String}}() #  check type of Set
+  affixes = Dict{String, Set{String}}() #  check type of Set
   for i=1:length(segs)
     s = segs[i]
     x = get_seg_affix(i, stem_index)
@@ -368,7 +368,7 @@ function get_min_affix_vocab_size(lexicon_state::LexiconState, segs, stem_index:
     add(affixes[x], s)
   end
 
-  sz = HashTable{String, Int}()
+  sz = Dict{String, Int}()
   for (x,s) = affixes
     c = lexicon_state.x_counter_seg[x]
     current_size = length(c)
@@ -412,15 +412,15 @@ function log_token_emission(lexicon_state::LexiconState, w::String, tags)
   return log_probs
 end
 
-function increment_transition_counts(d::HashTable{Int, HashTable{Int, Int}}, t_::Int, t::Int)
+function increment_transition_counts(d::Dict{Int, Dict{Int, Int}}, t_::Int, t::Int)
   #if t_ == 0 @assert t != 0 end
-  if ! has(d, t_) d[t_] = HashTable{Int, Int}() end
+  if ! has(d, t_) d[t_] = Dict{Int, Int}() end
   d[t_][t] = get(d[t_],t,0) + 1
 end
 
 function log_token_trans(lexicon_state::LexiconState, w::String, t::Int)
   @assert w != BOUNDARY_TOKEN
-  tc = HashTable{Int, HashTable{Int, Int}}()
+  tc = Dict{Int, Dict{Int, Int}}()
   for i=lexicon_state.word_locations[w]
     @assert lexicon_state.tokens[i] == w # double check
     w_ = lexicon_state.tokens[i-1] # get the previous token
@@ -546,8 +546,8 @@ function log_uprob_of_new_word_state_fast(lexicon_state::LexiconState, w::String
     end
   end
   min_num_segs = length(lexicon_state.counter_seg) + length(new_unique_segs) # NOTE: check to delete zero count in counter_seg! DONE
-  affix_counter = HashTable{String, Int}() # count number of segs for each affix
-  x_new_unique_segs = HashTable{String, Set{String}}()
+  affix_counter = Dict{String, Int}() # count number of segs for each affix
+  x_new_unique_segs = Dict{String, Set{String}}()
   # initiate x_new_unique_segs
   for affix = POSSIBLE_AFFIXES
     x_new_unique_segs[affix] = Set{String}()
