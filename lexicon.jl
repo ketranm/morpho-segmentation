@@ -195,7 +195,7 @@ function observe_word_state(lexicon_state::LexiconState, ws::WordState, count_::
       @assert w != BOUNDARY_TOKEN
       observe(lexicon_state.fast_distr_token_gt, t, w, count_)
       w_ = lexicon_state.tokens[i-1] # look at the previous token
-      t_ = lexicon_state.NUM_TAGS + 1 # t_ = nothing
+      t_ = lexicon_state.NUM_TAGS + 1
       if w_ == BOUNDARY_TOKEN
         t_ = lexicon_state.NUM_TAGS + 1 # dealing with boudaray tokens
       elseif w_ == w
@@ -206,7 +206,7 @@ function observe_word_state(lexicon_state::LexiconState, ws::WordState, count_::
       observe(lexicon_state.distrs_transition[t_], t, count_)
 
       _w = lexicon_state.tokens[i+1] # loot at the next token
-      _t = lexicon_state.NUM_TAGS + 1 # _t = nothing
+      _t = lexicon_state.NUM_TAGS + 1
       if _w != w
         if _w == BOUNDARY_TOKEN
           _t = lexicon_state.NUM_TAGS + 1
@@ -224,7 +224,6 @@ end
 function add_word_state(lexicon_state::LexiconState, ws::WordState)
   w = ws.word
   @assert ! has(lexicon_state.words, w) # make sure the word is deleted before
-
   observe_word_state(lexicon_state, ws, 1)
   lexicon_state.words[w] = copy(ws) ## need deepcopy?
 end
@@ -299,8 +298,9 @@ function prefixes(lexicon_state::LexiconState)
   d = ref(String)
   for (w,ws)=lexicon_state.words
     if ws.to_segment && ws.stem_index > 1
+      cw = chars(w)
       for i=ws.spans[1:ws.stem_index-1]
-        push(d, w[ i[1]:i[2] ])
+        push(d, string(cw[ i[1]:i[2] ]...) )
       end
     end
   end
@@ -315,8 +315,9 @@ function suffixes(lexicon_state::LexiconState)
   d = ref(String)
   for (w,ws)=lexicon_state.words
     if ws.to_segment && ws.stem_index < length(ws.spans)
+      cw = chars(w)
       for i= ws.spans[ws.stem_index+1:length(ws.spans)]
-        push(d,w[ i[1]:i[2] ])
+        push(d, string(cw[ i[1]:i[2] ]...) )
       end
     end
   end
@@ -331,7 +332,8 @@ function stems(lexicon_state::LexiconState)
   d = ref(String)
   for (w,ws)=lexicon_state.words
     if ws.to_segment
-      push(d, w[ ws.spans[ws.stem_index][1] : ws.spans[ws.stem_index][2] ])
+      cw = chars(w)
+      push(d, string(cw[ ws.spans[ws.stem_index][1] : ws.spans[ws.stem_index][2] ]...) )
     end
   end
   return d
