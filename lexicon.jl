@@ -484,7 +484,7 @@ function calculate_pairwise_suffix_match(lexicon_state::LexiconState, w, spans, 
   end
 end
 
-function calculate_pairwise_prefix_match(lexicon_state::LexiconState, w::String, spans, stem_index::Int64, neighbor::String)
+function calculate_pairwise_prefix_match(lexicon_state::LexiconState, w::String, spans, stem_index::Int, neighbor::String)
   @assert w != neighbor
   if ! has(lexicon_state.words, neighbor)
     return nothing

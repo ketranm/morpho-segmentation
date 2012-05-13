@@ -23,7 +23,7 @@ function index_word(d::Dict{String, Int}, w::String) # TODO not used
 end
 
 
-function sort_hash(h::Dict{String, Int64})
+function sort_hash(h::Dict{String, Int})
   sort_array = {}
   for e = h
     push(sort_array,e)
@@ -32,7 +32,7 @@ function sort_hash(h::Dict{String, Int64})
 end
 
 function count_word_types(phrase_counts::Vector{Int}, phrases::Vector{String})
-  wc = Dict{String, Int64}()
+  wc = Dict{String, Int}()
   @assert length(phrase_counts) == length(phrases)
   for i=1:length(phrases)
     if phrase_counts[i] < 0  continue end

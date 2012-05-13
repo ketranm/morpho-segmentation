@@ -12,7 +12,7 @@ end
 
 function read_data(filename::String)
   fh = open(filename)
-  phrase_counts = ref(Int64)
+  phrase_counts = ref(Int)
   phrases = ref(String)
   for line=EachLine(fh)
     fields = split(line)
@@ -23,7 +23,7 @@ function read_data(filename::String)
 end
 
 # simple counter
-function counter(collection::Dict{String, Int64}, w::String)
+function counter(collection::Dict{String, Int}, w::String)
   collection[w] = get(collection, w, 0) + 1
 end
 

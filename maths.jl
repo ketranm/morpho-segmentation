@@ -10,16 +10,16 @@ function log_exponential(gamma, k)
   -1.0 * gamma * log(k)
 end
 
-function log_geometric(gamma::Float64, k::Int64)
+function log_geometric(gamma::Float64, k::Int)
   @assert k >= 0
   k * log(1.0 - gamma) + log(gamma)
 end
 
-function log_geometric(gamma::Float64, N::Vector{Int64})
+function log_geometric(gamma::Float64, N::Vector{Int})
   N * log(1.0 - gamma) + log(gamma)
 end
 
-function log_geometric_truncated(gamma::Float64, k::Int64, N::Int64)
+function log_geometric_truncated(gamma::Float64, k::Int, N::Int)
   # return a truncated probability
   @assert 0 <= k <= N
   logp = [0:N] * log(1.0-gamma) + log(gamma)
@@ -28,7 +28,7 @@ function log_geometric_truncated(gamma::Float64, k::Int64, N::Int64)
   logp[k+1] - logz # note k and k+1
 end
 
-function LogGeometricTruncated(gamma::Float64, N::Int64)
+function LogGeometricTruncated(gamma::Float64, N::Int)
   # return a vector of truncated probabilities
   logprobs = [0:N] * log(1.0 - gamma) + log(gamma)
   b = max(logprobs)
@@ -38,13 +38,13 @@ end
 
 type FastDirichletMult
   alpha::Float64
-  dim::Int64
-  counts::Vector{Int64} # set zeros(Int64, dim) for initialization
-  total::Int64
+  dim::Int
+  counts::Vector{Int} # set zeros(Int, dim) for initialization
+  total::Int
 
   # Constructors
   FastDirichletMult(alpha,dim,counts,total) = new(alpha,dim,counts,total)
-  FastDirichletMult(alpha,dim) = FastDirichletMult(alpha, dim, zeros(Int64, dim), 0)
+  FastDirichletMult(alpha,dim) = FastDirichletMult(alpha, dim, zeros(Int, dim), 0)
 end
 
 function validate(p::FastDirichletMult)
@@ -59,20 +59,20 @@ function !=(p::FastDirichletMult, q::FastDirichletMult)
   ! (p == q)
 end
 
-function observe(p::FastDirichletMult, k::Int64, v::Int64)
+function observe(p::FastDirichletMult, k::Int, v::Int)
   @assert k >= 1
   p.counts[k] += v
   p.total += v
 end
 
-function log_prob(p::FastDirichletMult, k::Int64)
+function log_prob(p::FastDirichletMult, k::Int)
   # this is the result after integrating out
   # see my report, how to derive to this formula
   @assert k >= 1
   log( (p.alpha + p.counts[k]) / (p.alpha*p.dim + p.total) )
 end
 
-function log_prob_with_N(p::FastDirichletMult, k::Int64, N::Int64)
+function log_prob_with_N(p::FastDirichletMult, k::Int, N::Int)
   @assert k >= 1 # remove later
   log( (p.alpha + p.counts[k]) / (p.alpha*N + p.total) )
 end
@@ -80,15 +80,15 @@ end
 # Dirichlet Multinomial
 type DirichletMult
   alpha::Float64
-  counts::Dict # TODO Dict{String, Int64}
-  total::Int64
+  counts::Dict # TODO Dict{String, Int}
+  total::Int
 
   # Constructors
   DirichletMult(alpha, counts, total) = new(alpha, counts, total)
   DirichletMult(alpha) = DirichletMult(alpha, Dict(), 0)
 end
 
-function observe(p::DirichletMult, k, v::Int64)
+function observe(p::DirichletMult, k, v::Int)
   p.counts[k] = get(p.counts,k,0) + v
   p.total += v
   if p.counts[k] == 0
@@ -112,17 +112,17 @@ end
 # Use for POS, each word has nd possible POSs
 type FastDirichletMultArray
   alpha::Float64
-  nd::Int64 # number of distributions
-  counts::Dict # TODO Dict{String, Int64}
-  totals::Vector{Int64}
+  nd::Int # number of distributions
+  counts::Dict # TODO Dict{String, Int}
+  totals::Vector{Int}
 
   FastDirichletMultArray(alpha,nd,counts,totals) = new(alpha,nd,counts,totals)
-  FastDirichletMultArray(alpha,nd) = FastDirichletMultArray(alpha,nd,Dict(),zeros(Int64,nd))
+  FastDirichletMultArray(alpha,nd) = FastDirichletMultArray(alpha,nd,Dict(),zeros(Int,nd))
 end
 
-function observe(p::FastDirichletMultArray, i::Int64, k, v::Int64)
+function observe(p::FastDirichletMultArray, i::Int, k, v::Int)
   if ! has(p.counts, k)
-    p.counts[k] = zeros(Int64, p.nd)
+    p.counts[k] = zeros(Int, p.nd)
   end
   c = p.counts[k]
   c[i] += v
@@ -132,21 +132,21 @@ function observe(p::FastDirichletMultArray, i::Int64, k, v::Int64)
   end
 end
 
-function log_probs_no_tag(p::FastDirichletMultArray, k, N::Int64)
+function log_probs_no_tag(p::FastDirichletMultArray, k, N::Int)
   sum_totals = sum(p.totals)
-  countsk = get(p.counts, k, zeros(Int64, p.nd))
+  countsk = get(p.counts, k, zeros(Int, p.nd))
   sum_counts = sum(countsk)
   log( (p.alpha + sum_counts) / (p.alpha*N + sum_totals) )
 end
 
-function log_probs(p::FastDirichletMultArray, k, N::Int64, tags::Vector{Int64})
-  countsk = get(p.counts, k, zeros(Int64, p.nd))
+function log_probs(p::FastDirichletMultArray, k, N::Int, tags::Vector{Int})
+  countsk = get(p.counts, k, zeros(Int, p.nd))
   log( (p.alpha + countsk[tags]) ./ (p.alpha*N + p.totals[tags]) )
 end
 
-function log_probs_with_Ns(p::FastDirichletMultArray, k, Ns, tags::Vector{Int64})
+function log_probs_with_Ns(p::FastDirichletMultArray, k, Ns, tags::Vector{Int})
   @assert length(Ns) == length(tags)
-  countsk = get(p.counts, k, zeros(Int64, p.nd))
+  countsk = get(p.counts, k, zeros(Int, p.nd))
   log( (p.alpha + countsk[tags]) ./ (p.alpha*Ns + p.totals[tags]))
 end
 
