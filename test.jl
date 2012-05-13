@@ -63,7 +63,8 @@ outfile = strcat(outdict,"-out-state-3.dict")
 state = run_gibbs(phrase_counts, phrases, gold, gold_tags, seq, suffix, prefix, numit, fix_tags, fix_segs, fix_stem, init_tag, init_seg, init_stem, state0, outfile, sep_lex_size)
 
 
-#println("Final stage....................!")
-#state0=state
-#suffix = true
-#state = run_gibbs(phrase_counts, phrases, gold, gold_tags, seq, suffix, prefix, numit, fix_tags, fix_segs, fix_stem, init_tag, init_seg, init_stem, state0, outfile, sep_lex_size)
+println("Final stage....................!")
+state0=state
+suffix = true
+outfile = strcat(outdict,"-out-state-4.dict")
+state = run_gibbs(phrase_counts, phrases, gold, gold_tags, seq, suffix, prefix, numit, fix_tags, fix_segs, fix_stem, init_tag, init_seg, init_stem, state0, outfile, sep_lex_size)
