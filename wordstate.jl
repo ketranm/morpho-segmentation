@@ -108,10 +108,11 @@ end
 
 function get_last_suffix(w::String, spans::Vector, stem_index::Int)
   @assert spans[1][1] == 1
-  @assert spans[length(spans)][2] == length(w)
+  @assert spans[length(spans)][2] == strlen(w)
   if stem_index < length(spans)
     s = spans[length(spans)]
-    return w[s[1]:s[2]]
+    cw = chars(w) # annoying unicode
+    return string(cw[s[1]:s[2]]...)
   else
     return ""
   end
@@ -123,10 +124,11 @@ end
 
 function get_first_prefix(w::String, spans::Vector, stem_index::Int)
   @assert spans[1][1] == 1
-  @assert spans[length(spans)][2] == length(w)
+  @assert spans[length(spans)][2] == strlen(w)
   if stem_index > 1
     s = spans[1]
-    return w[s[1]:s[2]]
+    cw = chars(w) # annoying unicode
+    return string(cw[s[1]:s[2]]...)
   else
     return ""
   end
