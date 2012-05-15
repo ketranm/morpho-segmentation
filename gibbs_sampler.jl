@@ -1,4 +1,4 @@
-function run_gibbs(phrase_counts::Vector{Int}, phrases::Vector{String}, gold, gold_tags, seq::Bool, use_seq_suffix::Bool, use_seq_prefix::Bool, numit::Int, fix_tags::Bool, fix_segs::Bool, fix_stem::Bool, init_tag::String, init_seg::String, init_stem::String, state0, outfile::String, sep_lex_size) # flags?
+function run_gibbs(phrase_counts::Vector{Int}, phrases::Vector{String}, gold, gold_tags, seq::Bool, use_seq_suffix::Bool, use_seq_prefix::Bool, numit::Int, fix_tags::Bool, fix_segs::Bool, fix_stem::Bool, init_tag::String, init_seg::String, init_stem::String, num_tags::Int, state0, outfile::String, sep_lex_size) # flags?
   wordcounts = count_word_types(phrase_counts, phrases)
   (post_lexicon, tag_mapping) = (nothing, nothing)
   seq_data = (seq ? phrases : ref(String))
@@ -80,4 +80,29 @@ function run_gibbs(phrase_counts::Vector{Int}, phrases::Vector{String}, gold, go
     dump_dict(state, outfile) # write out dictionary
   end # numit
   return state
+end
+
+type Params
+  phrase_counts::Vector{Int}
+  phrases::Vector{String}
+  gold::Vector{String}
+  gold_tags::Nothing
+  seq::Bool
+  use_suffix::Bool
+  use_prefix::Bool
+  numit::Int
+  fix_tags::Bool
+  fix_segs::Bool
+  fix_stem::Bool
+  init_tag::String
+  init_seg::String
+  init_stem::String
+  num_tags::Int
+  state0
+  outfile::String
+  sep_lex_size::Bool
+end
+
+function run_gibbs(params::Params)
+  run_gibbs(params.phrase_counts, params.phrases, params.gold, params.gold_tags, params.seq, params.use_suffix, params.use_prefix, params.numit, params.fix_tags, params.fix_segs, params.fix_stem, params.init_tag, params.init_seg, params.init_stem, params.num_tags, params.state0, params.outfile, params.sep_lex_size)
 end
