@@ -1,7 +1,11 @@
 #README
 
 - You need the latest Julia version to run this program
-- To run the program: __julia test.jl__
+- To run the program:
+
+~~~~
+julia test.jl
+~~~
 
 
 ## Parallel running for 7 languages
