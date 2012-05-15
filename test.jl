@@ -9,8 +9,8 @@ load("dump_dict.jl")
 load("gibbs_sampler.jl")
 
 
-filename = "data-sample/1984cs"
-outdict = "models/cs1984"
+filename = "data-sample/1984.bg"
+outdict = "models/tmp"
 
 gold_cols = read_data(filename)
 gold_tags = nothing ## TODO: revise code
