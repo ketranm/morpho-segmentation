@@ -9,8 +9,8 @@ load("dump_dict.jl")
 load("gibbs_sampler.jl")
 load("run_all.jl")
 
-
-langs = {"bg","cs","en","sl","pl","sr","hu"}
+#langs = {"bg","cs","en","sl","pl","sr","hu"}
+langs = {"en"}
 data_dir = "data-sample/"
 out_prefix = "model-"
 out_dir = "models/"
@@ -28,7 +28,7 @@ seq = false
 suffix = false
 prefix = false
 num_processes = 1
-numit = 2
+numit = 50
 num_tags = 1
 fix_tags = false
 fix_segs = false

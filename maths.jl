@@ -96,7 +96,7 @@ function observe(p::DirichletMult, k, v::Int)
   end
 end
 
-function prob(p::DirichletMult, k, N)
+function prob(p::DirichletMult, k, N::Int)
   @assert length(p.counts) <= N
   numer = p.alpha + get(p.counts,k,0)
   @assert p.total >= 0
@@ -104,7 +104,7 @@ function prob(p::DirichletMult, k, N)
   numer/denom
 end
 
-function log_prob(p::DirichletMult, k, N)
+function log_prob(p::DirichletMult, k, N::Int)
   log(prob(p,k,N))
 end
 

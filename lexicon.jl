@@ -384,15 +384,11 @@ function log_prob_segment_length(k::Int)
   log_geometric(GAMMA_SEG_LEN, k-1)
 end
 
-function get_log_tag_prior(lexicon_state::LexiconState, all_possible_tags)
-  d = ref(Float64)
-  for t = all_possible_tags # [1:NUM_TAGS]
-    push(d, log_prob(lexicon_state.distr_type_tag, t, lexicon_state.NUM_TAGS)) # TODO: NUM_TAGS + 1
-  end
-  return d
+function get_log_tag_prior(lexicon_state::LexiconState, all_possible_tags::Vector{Int})
+  [log_prob(lexicon_state.distr_type_tag, t, lexicon_state.NUM_TAGS)::Float64 for t=all_possible_tags]  
 end
 
-function log_token_emission(lexicon_state::LexiconState, w::String, tags)
+function log_token_emission(lexicon_state::LexiconState, w::String, tags::Vector{Int})
   d = lexicon_state.fast_distr_token_gt
   @assert w != BOUNDARY_TOKEN
   @assert ! has(d.counts, w) # TODO: check type, might cause BUG
@@ -716,7 +712,7 @@ function print_stats(it::Int, lexicon_state::LexiconState)
   num_suffixes = length(lexicon_state.x_counter_seg["suffix"])
   num_stems = length(lexicon_state.x_counter_seg["stem"])
   println(" iter : ", it)
-  println("      top PREFIXES : ", most_common(lexicon_state.x_counter_seg["prefix"], min(10, num_prefixes)))
-  println("      top SUFFIXES : ", most_common(lexicon_state.x_counter_seg["suffix"], min(10, num_suffixes)))
-  println("      top STEMS : ", most_common(lexicon_state.x_counter_seg["stem"], min(5, num_stems)))
+  println("      top PREFIXES : ", join(most_common(lexicon_state.x_counter_seg["prefix"], min(10, num_prefixes)), " "))
+  println("      top SUFFIXES : ", join(most_common(lexicon_state.x_counter_seg["suffix"], min(10, num_suffixes)), " "))
+  println("      top STEMS : ", join(most_common(lexicon_state.x_counter_seg["stem"], min(5, num_stems)), " "))
 end

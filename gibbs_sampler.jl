@@ -1,3 +1,9 @@
+function print_distr(p::DirichletMult)
+  for (k,v) = p.counts
+    println("tag $(k):\t", v/p.total)
+  end
+end
+
 function run_gibbs(phrase_counts::Vector{Int}, phrases::Vector{String}, gold, gold_tags, seq::Bool, use_seq_suffix::Bool, use_seq_prefix::Bool, numit::Int, fix_tags::Bool, fix_segs::Bool, fix_stem::Bool, init_tag::String, init_seg::String, init_stem::String, num_tags::Int, state0, outfile::String, sep_lex_size) # flags?
   wordcounts = count_word_types(phrase_counts, phrases)
   (post_lexicon, tag_mapping) = (nothing, nothing)
@@ -39,7 +45,7 @@ function run_gibbs(phrase_counts::Vector{Int}, phrases::Vector{String}, gold, go
       temp = {}
       if ! to_stem || fix_stem
         @assert ! to_segment || fix_segs
-        @assert len(all_possible_spans) == 1
+        @assert length(all_possible_spans) == 1
         for s = all_possible_spans
           for j=old_ws.stem_index
             push(temp, (log_uprob_of_new_word_state_fast(state, w, freq, all_possible_tags, s, j, log_tag_probs),s,j))
@@ -78,6 +84,7 @@ function run_gibbs(phrase_counts::Vector{Int}, phrases::Vector{String}, gold, go
     end # for wordcounts
     print_stats(it, state)
     dump_dict(state, outfile) # write out dictionary
+    print_distr(state.distr_type_tag)
   end # numit
   return state
 end

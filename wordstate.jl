@@ -24,11 +24,7 @@ end
 
 
 function sort_hash(h::Dict{String, Int})
-  sort_array = {}
-  for e = h
-    push(sort_array,e)
-  end
-  sort(sort_array)
+  sort({e for e=h})
 end
 
 function count_word_types(phrase_counts::Vector{Int}, phrases::Vector{String})
@@ -51,11 +47,7 @@ end
 
 function copy(x::Vector{Any})
   # copy spans
-  x_copy = {}
-  for e = x
-    push(x_copy,copy(e))
-  end
-  x_copy
+  {copy(e) for e=x}
 end
 
 type WordState
@@ -140,7 +132,8 @@ end
 
 function stem(ws::WordState)
   s = ws.spans[ws.stem_index]
-  ws.word[s[1]:s[2]]
+  cw = chars(ws.word)
+  string(cw[s[1]:s[2]]...)
 end
 
 function log_prob_normalized_num_segments(ws::WordState)
