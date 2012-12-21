@@ -4,6 +4,15 @@ function print_distr(p::DirichletMult)
   end
 end
 
+function print_tags(lexicon_state::LexiconState)
+  fh = open("tags.txt","w")
+  words = lexicon_state.words
+  for (w,ws) = words
+    write(fh, "$(ws.tag)\t$(w)\n")
+  end
+  close(fh)
+end
+
 function run_gibbs(phrase_counts::Vector{Int}, phrases::Vector{String}, gold, gold_tags, seq::Bool, use_seq_suffix::Bool, use_seq_prefix::Bool, numit::Int, fix_tags::Bool, fix_segs::Bool, fix_stem::Bool, init_tag::String, init_seg::String, init_stem::String, num_tags::Int, state0, outfile::String, sep_lex_size) # flags?
   wordcounts = count_word_types(phrase_counts, phrases)
   (post_lexicon, tag_mapping) = (nothing, nothing)
@@ -84,7 +93,8 @@ function run_gibbs(phrase_counts::Vector{Int}, phrases::Vector{String}, gold, go
     end # for wordcounts
     print_stats(it, state)
     dump_dict(state, outfile) # write out dictionary
-    print_distr(state.distr_type_tag)
+    #print_distr(state.distr_type_tag)
+    print_tags(state)
   end # numit
   return state
 end
