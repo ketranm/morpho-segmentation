@@ -1,4 +1,4 @@
-function spans_of_length(n::Int, k::Int)
+function spans_of_length_old(n::Int, k::Int)
   # get all possible k-segmentations of a word len n
   if k > n return {{}} end
   if k == 1 return {{[1,n]}} end
@@ -6,7 +6,7 @@ function spans_of_length(n::Int, k::Int)
   for split = 1:n-k+1
     for span = spans_of_length(n-split, k-1)
       shifted = {}
-      for s = span
+      for s in span
         push(shifted, s + split)
       end
       enqueue(shifted, [1, split])
@@ -15,6 +15,46 @@ function spans_of_length(n::Int, k::Int)
   end
   return ret
 end
+
+
+function spans_of_length(n::Int, k::Int)
+  # get all possible k-segmentations of a word len n
+  if k > n return {{}} end
+  if k == 1 return {{[1,n]}} end
+  ret = {}
+  for split = 1:n-k+1
+    for span = spans_of_length_old(n-split, k-1)
+      shifted = {}
+      for s in span
+        push(shifted, s + split)
+      end
+      enqueue(shifted, [1, split])
+      push(ret, shifted)
+    end
+  end
+  
+  restrict_seg = {}
+  for span = ret
+    l = length(span)
+    if l == 1
+      push(restrict_seg, span)
+    else
+      flag = true
+      for i=1:l-1
+        if span[i][2]-span[i][1] == 0
+          flag = false
+          break
+        end
+      end
+      if flag == true
+        push(restrict_seg, span)
+      end
+    end
+  end
+  return restrict_seg
+end
+
+
 
 function index_word(d::Dict{String, Int}, w::String) # TODO not used
   if ! has(d,w)
@@ -35,11 +75,7 @@ function count_word_types(phrase_counts::Vector{Int}, phrases::Vector{String})
     to_segment = phrase_counts[i] > 0
     words = split(phrases[i])
     for w = words
-      if to_segment
-        wc[w] = get(wc, w, 0) + 1
-      else
-        wc[w] = 0
-      end
+      wc[w] = (to_segment ? get(wc, w, 0) + 1 : 0)
     end
   end
   sort_hash(wc)
@@ -59,6 +95,7 @@ type WordState
   to_segment::Bool
   to_stem::Bool
   to_tag::Bool
+  cluster_id::String
 end
 
 function copy(ws::WordState)
@@ -70,7 +107,8 @@ function copy(ws::WordState)
   to_segment = ws.to_segment
   to_stem = ws.to_stem
   to_tag = ws.to_tag
-  return WordState(word, freq, tag, stem_index, spans, to_segment, to_stem, to_tag)
+  cluster_id = ws.cluster_id
+  return WordState(word, freq, tag, stem_index, spans, to_segment, to_stem, to_tag, cluster_id)
 end
 
 function get_seg_affix(i::Int, stem_index::Int)
@@ -101,13 +139,7 @@ end
 function get_last_suffix(w::String, spans::Vector, stem_index::Int)
   @assert spans[1][1] == 1
   @assert spans[length(spans)][2] == strlen(w)
-  if stem_index < length(spans)
-    s = spans[length(spans)]
-    cw = chars(w) # annoying unicode
-    return string(cw[s[1]:s[2]]...)
-  else
-    return ""
-  end
+  stem_index < length(spans) ? (s = spans[end]; cw = chars(w); string(cw[s[1]:s[2]]...)) : ""
 end
 
 function get_last_suffix(ws::WordState)
@@ -117,13 +149,7 @@ end
 function get_first_prefix(w::String, spans::Vector, stem_index::Int)
   @assert spans[1][1] == 1
   @assert spans[length(spans)][2] == strlen(w)
-  if stem_index > 1
-    s = spans[1]
-    cw = chars(w) # annoying unicode
-    return string(cw[s[1]:s[2]]...)
-  else
-    return ""
-  end
+  stem_index > 1 ? (s = spans[1]; cw = chars(w); string(cw[s[1]:s[2]]...)) : ""
 end
 
 function get_first_prefix(ws::WordState)
@@ -142,11 +168,11 @@ function log_prob_normalized_num_segments(ws::WordState)
   log_geometric(GAMMA_NORMALIZED_NUM_SEGS_PER_WORD, num_segs)
 end
 
-function seg_to_spans(seg::Vector)
+function seg_to_spans(seg::Vector{String})
   spans = {}
   i = 1
-  for s = seg
-    n = length(s)
+  for s in seg
+    n = strlen(s)
     push(spans, [i,i+n-1])
     i += n
   end

@@ -15,9 +15,10 @@ function read_data(filename::String)
   phrase_counts = ref(Int)
   phrases = ref(String)
   for line=EachLine(fh)
-    fields = split(line)
-    push(phrase_counts, parse_int(fields[1]))
-    push(phrases, fields[2])
+    line = chomp(line)
+    cols = split(line)
+    push(phrase_counts, parse_int(cols[1]))
+    push(phrases, cols[2])
   end
   (phrase_counts, phrases)
 end
@@ -57,4 +58,25 @@ function most_common(h::Dict{String, Int}, n::Int)
     @assert n >= 1
     return sort_by_val(h)[1:n]
   end
+end
+
+function read_cluster(filename::String)
+  fh = open(filename)
+  d = Dict{String,String}()
+  for line=EachLine(fh)
+    line = chomp(line)
+    cols = split(line)
+    word = cols[2]
+    cluster = cols[1]
+    d[word] = cluster
+  end
+  return d
+end
+
+function dump_dict(lexicon_state::LexiconState, dict_file)
+  fh = open(dict_file,"w")
+  for (w,ws) = lexicon_state.words
+    write(fh, strcat(w,"\t", length(ws.spans),"\t", ws.stem_index,"\t",ws.tag,"\t",join(segments(ws)," "),"\n"))
+  end
+  close(fh)
 end

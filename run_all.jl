@@ -5,7 +5,7 @@ function run_all(params)
   state = run_gibbs(params)
 
   
-  println("State 2 ...")
+  #println("State 2 ...")
   params.state0 = state
   params.num_tags = 5
   params.init_seg = "state"
@@ -15,14 +15,9 @@ function run_all(params)
 
   println("State 3 ...")
   params.state0 = state
-  params.seq =  true
+  params.cluster = read_cluster(cluster_file)
   params.init_tag = "state"
   params.outfile = strcat(outfile,"3.dict")
   state = run_gibbs(params)
 
-  println("State 4 ...")
-  params.state0 = state
-  params.use_suffix = true
-  params.outfile = strcat(outfile,"4.dict")
-  state = run_gibbs(params)
 end

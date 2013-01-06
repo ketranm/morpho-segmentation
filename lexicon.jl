@@ -17,6 +17,8 @@ type LexiconState
   VALENCE_MODEL::Int
   USE_STEM_LENGTH_CONSTRAINT::Bool
   SEPARATE_LEXICON_SIZE::Bool
+  crp::Dict{String, DirichletMult}
+  has_suffixes::DirichletMult # new constrain
 end
 
 function get_counts(words::Dict{String, WordState}, num_tags::Int)
@@ -30,12 +32,29 @@ function get_counts(words::Dict{String, WordState}, num_tags::Int)
     x_fast_distrs_seg_gt[affix] = FastDirichletMultArray(ALPHA_SEG, NUM_TAGS+1)
   end
 
+  crp = Dict{String, DirichletMult}()
+  has_suffixes = DirichletMult(.1)
+  
   for (w, ws) = words
     t = ws.tag  # get tag
     if ! RESTRICT_TYPE_TAG_COUNTS || (RESTRICT_TYPE_TAG_COUNTS && ws.to_tag)
       observe(distr_type_tag, t, 1)
     end
-
+    
+    cluster_id = ws.cluster_id
+    if ! has(crp, cluster_id)
+      crp[cluster_id] = DirichletMult(ALPHA_CLUSTER)
+    end
+    
+    last_suffix = strcat(get_last_suffix(ws),"END")
+    if last_suffix == "END"
+      observe(has_suffixes, false, 1)
+    else
+      observe(has_suffixes, true, 1)
+    end
+    
+    observe(crp[cluster_id],last_suffix,1)
+    
     if ! RESTRICT_SEG_COUNTS || (RESTRICT_SEG_COUNTS && ws.to_stem)
       segs = segments(ws)
       for i=1:length(segs)
@@ -47,7 +66,7 @@ function get_counts(words::Dict{String, WordState}, num_tags::Int)
       end
     end
   end
-  (counter_seg, x_counter_seg, x_fast_distrs_seg_gt, distr_type_tag)
+  (counter_seg, x_counter_seg, x_fast_distrs_seg_gt, distr_type_tag, crp, has_suffixes)
 end
 
 function get_seq_token_counts(words::Dict{String, WordState}, tokens::Vector{String}, num_tags::Int)
@@ -73,7 +92,7 @@ function get_seq_token_counts(words::Dict{String, WordState}, tokens::Vector{Str
   return (fast_distrs_token_gt, distrs_transition)
 end
 
-function init_lexicon_state(word_freq::Vector, seq_data, gold, tag_lexicon, init_tag::String, init_seg::String, init_stem::String, num_tags, state0, sep_lex_size::Bool, use_seq_suffix::Bool, use_seq_prefix::Bool)
+function init_lexicon_state(word_freq::Vector, cluster, seq_data, gold, tag_lexicon, init_tag::String, init_seg::String, init_stem::String, num_tags, state0, sep_lex_size::Bool, use_seq_suffix::Bool, use_seq_prefix::Bool)
   words = Dict{String, WordState}()
   NUM_TAGS = num_tags
   SEPARATE_LEXICON_SIZE = sep_lex_size
@@ -99,8 +118,8 @@ function init_lexicon_state(word_freq::Vector, seq_data, gold, tag_lexicon, init
     @assert strlen(word) > 0
     @assert word != BOUNDARY_TOKEN
     @assert freq >= 0
-    to_freeze = matches(FROZEN_RE, word)
-    to_segment = ! to_freeze
+    #to_freeze = matches(FROZEN_RE, word)
+    to_segment = true #! to_freeze
     to_stem = true
     to_tag = true
     # valid tag in [1:NUM_TAGS]
@@ -134,11 +153,16 @@ function init_lexicon_state(word_freq::Vector, seq_data, gold, tag_lexicon, init
     else
       @assert false
     end
-    ws = WordState(word, freq, tag, stem_index, spans, to_segment, to_stem, to_tag)
+    if cluster == nothing
+      cluster_id = "NONE"
+    else
+      cluster_id = get(cluster,word,"NONE")
+    end
+    ws = WordState(word, freq, tag, stem_index, spans, to_segment, to_stem, to_tag, cluster_id)
     words[word] = ws
   end
 
-  (counter_seg, x_counter_seg, x_fast_distrs_seg_gt, distr_type_tag) = get_counts(words, NUM_TAGS)
+  (counter_seg, x_counter_seg, x_fast_distrs_seg_gt, distr_type_tag, crp, has_suffixes) = get_counts(words, NUM_TAGS)
   tokens = seq_data
   if ! isempty(tokens)
     word_locations = get_word_locations(tokens)
@@ -147,7 +171,7 @@ function init_lexicon_state(word_freq::Vector, seq_data, gold, tag_lexicon, init
     word_locations = fast_distr_token_gt = distrs_transition = nothing
   end
 
-  lexicon_state = LexiconState(words, word_freq, counter_seg, x_counter_seg, x_fast_distrs_seg_gt, distr_type_tag, tokens, word_locations, fast_distr_token_gt, distrs_transition, use_seq_suffix, use_seq_prefix, NUM_TAGS, VALENCE_MODEL, USE_STEM_LENGTH_CONSTRAINT, SEPARATE_LEXICON_SIZE)
+  lexicon_state = LexiconState(words, word_freq, counter_seg, x_counter_seg, x_fast_distrs_seg_gt, distr_type_tag, tokens, word_locations, fast_distr_token_gt, distrs_transition, use_seq_suffix, use_seq_prefix, NUM_TAGS, VALENCE_MODEL, USE_STEM_LENGTH_CONSTRAINT, SEPARATE_LEXICON_SIZE, crp, has_suffixes)
 
   return lexicon_state
 end
@@ -172,12 +196,26 @@ end
 function observe_word_state(lexicon_state::LexiconState, ws::WordState, count_::Int)
   t = ws.tag
   w = ws.word
+  cluster_id = ws.cluster_id
+  
   if ! RESTRICT_TYPE_TAG_COUNTS || (RESTRICT_TYPE_TAG_COUNTS && ws.to_tag)
     observe(lexicon_state.distr_type_tag, t, count_) # see word with pos t
   end
 
   if ! RESTRICT_SEG_COUNTS || (RESTRICT_SEG_COUNTS && ws.to_stem)
     segs = segments(ws)
+    
+    if cluster_id != "NONE"
+      last_suffix = strcat(get_last_suffix(ws),"END")
+      if last_suffix == "END"
+        observe(lexicon_state.has_suffixes, false, count_)
+      else
+        observe(lexicon_state.has_suffixes, true, count_)
+      end
+      
+      observe(lexicon_state.crp[cluster_id], last_suffix, count_)
+    end
+    
     for i = 1:length(segs)
       s = segs[i]
       lexicon_state.counter_seg[s] = get(lexicon_state.counter_seg, s, 0) + count_
@@ -189,6 +227,7 @@ function observe_word_state(lexicon_state::LexiconState, ws::WordState, count_::
       if c[s] == 0 del(c,s) end
     end
   end
+  
   if ! isempty(lexicon_state.tokens)
     for i = lexicon_state.word_locations[w]
       @assert lexicon_state.tokens[i] == w
@@ -382,6 +421,7 @@ end
 
 function log_prob_segment_length(k::Int)
   log_geometric(GAMMA_SEG_LEN, k-1)
+  #log_gamma(1.0*k,3,1.)
 end
 
 function get_log_tag_prior(lexicon_state::LexiconState, all_possible_tags::Vector{Int})
@@ -507,7 +547,7 @@ end
 # update at sampling one word-type
 # important function, can't be wrong
 # TODO: it's wrong atm, FIX now
-function log_uprob_of_new_word_state_fast(lexicon_state::LexiconState, w::String, freq::Int, all_possible_tags::Vector{Int}, spans, stem_index, log_tag_probs)
+function log_uprob_of_new_word_state_fast(lexicon_state::LexiconState, w::String, freq::Int, all_possible_tags::Vector{Int}, spans, stem_index, log_tag_probs, cluster_id)
   for t = all_possible_tags
     @assert t < lexicon_state.NUM_TAGS + 1 # ignore token boundary
   end
@@ -523,29 +563,39 @@ function log_uprob_of_new_word_state_fast(lexicon_state::LexiconState, w::String
   @assert length(log_tag_probs) == length(all_possible_tags)
 
   segs = ref(String)
-  unique_segs = Set{String}()
+  #unique_segs = Set{String}()
+  
+  new_unique_segs = ref(String)
   # DEGUB: Julia hasn't supported fully UTF-8 yet
   # so I have to do some trick
   # fixed unicode issue
   cw = chars(w)
+  
   for s = spans
     _seg = string(cw[ s[1]:s[2] ]...)
     push(segs, _seg)
-    add(unique_segs, _seg)
-  end
-  new_unique_segs = ref(String)
-  for s = unique_segs
-    if get(lexicon_state.counter_seg,s,0) == 0
-      push(new_unique_segs, s)
+    if get(lexicon_state.counter_seg, _seg, 0) == 0
+      push(new_unique_segs, _seg)
     end
+    #add(unique_segs, _seg)
   end
+  
+  
+  #for s = unique_segs
+  #  if get(lexicon_state.counter_seg,s,0) == 0
+  #    push(new_unique_segs, s)
+  #  end
+  #end
+  
   min_num_segs = length(lexicon_state.counter_seg) + length(new_unique_segs) # NOTE: check to delete zero count in counter_seg! DONE
   affix_counter = Dict{String, Int}() # count number of segs for each affix
   x_new_unique_segs = Dict{String, Set{String}}()
   # initiate x_new_unique_segs
-  for affix = POSSIBLE_AFFIXES
+  
+  for affix in POSSIBLE_AFFIXES
     x_new_unique_segs[affix] = Set{String}()
   end
+  
   for i = 1:length(segs)
     affix = get_seg_affix(i, stem_index)
     affix_counter[affix] = get(affix_counter, affix, 0) + 1
@@ -557,19 +607,47 @@ function log_uprob_of_new_word_state_fast(lexicon_state::LexiconState, w::String
   end
  	
   log_prob_lexicon = 0.0
+  
   if lexicon_state.SEPARATE_LEXICON_SIZE
     # TODO separate size for prefix, stem, suffix
-    for affix = POSSIBLE_AFFIXES
+    for affix in POSSIBLE_AFFIXES
       min_num_segs = length(lexicon_state.x_counter_seg[affix]) + length(x_new_unique_segs[affix])
       log_prob_lexicon += log_geometric(X_GAMMA_NUM_UNIQUE_SEGS[affix], min_num_segs)
     end
   else
     log_prob_lexicon += log_geometric(GAMMA_NUM_UNIQUE_SEGS, min_num_segs - 1) #TODO: -1 OR NOT
   end
-  for s = new_unique_segs
-    log_prob_lexicon += log_prob_segment_length( strlen(s) )
+  
+  for s in new_unique_segs
+    log_prob_lexicon += log_prob_segment_length(strlen(s))
   end
 
+  # model cluster agreement
+  if cluster_id != "NONE" # > 1 is enough for NONE cluster
+    last_suffix = strcat(get_last_suffix(w,spans,stem_index), "END")
+    observe(lexicon_state.crp[cluster_id], last_suffix, 1)
+    num_min_last_suffixes = length(lexicon_state.crp[cluster_id].counts)
+    log_prob_lexicon += log_prob(lexicon_state.crp[cluster_id],last_suffix,num_min_last_suffixes)    
+    observe(lexicon_state.crp[cluster_id], last_suffix, -1) #undo
+    
+    #if last_suffix == "END"
+    #  observe(lexicon_state.has_suffixes, false, 1)
+    #  log_prob_lexicon += log_prob(lexicon_state.has_suffixes,false,2)
+    #  observe(lexicon_state.has_suffixes, false, -1)
+    #else
+    #  observe(lexicon_state.has_suffixes, true, 1)
+    #  log_prob_lexicon += log_prob(lexicon_state.has_suffixes,true,2)
+    #  observe(lexicon_state.has_suffixes, true, -1)
+    #end
+    if ! has(lexicon_state.crp[cluster_id].counts, last_suffix)
+      log_prob_lexicon += log(.2)
+    elseif last_suffix == "END"
+      log_prob_lexicon += log(.2)
+    else
+      log_prob_lexicon += log(.6)
+    end
+  end
+  
   if lexicon_state.VALENCE_MODEL == 0
     log_prob_lexicon += LOG_GEOM_TRUNC_NUM_SEGS_PER_WORD[length(spans)+1] # Critical death
   elseif lexicon_state.VALENCE_MODEL == 1
@@ -578,13 +656,16 @@ function log_uprob_of_new_word_state_fast(lexicon_state::LexiconState, w::String
   else
     @assert false
   end
+  
   log_probs_v = log_prob_lexicon + log_tag_probs
+  
   # surface forms
   affix_min_vocab_size = get_min_affix_vocab_size(lexicon_state, segs, stem_index)
   for i = 1:length(segs)
     affix = get_seg_affix(i, stem_index)
     fast_distrs_seg_gt = lexicon_state.x_fast_distrs_seg_gt[affix]
     Ns = affix_min_vocab_size[affix]
+    
     if affix == "stem"
       v = log_probs_no_tag(fast_distrs_seg_gt, segs[i], Ns)
       log_probs_v += v
@@ -599,6 +680,7 @@ function log_uprob_of_new_word_state_fast(lexicon_state::LexiconState, w::String
       @assert length(p) == length(log_probs_v) # TODO: remove?
       log_probs_v += p
     end
+    
   end
   # undo cascading counts
   for i = 1:length(segs)
@@ -704,6 +786,68 @@ function stem_length_violation(spans::Vector, stem_index::Int)
     end
   end
   return false
+end
+
+function load_model(model_file::String, cluster_file::String)
+  cluster = read_cluster(cluster_file)
+  fh = open(model_file)
+  words = Dict{String, WordState}()
+  for line = EachLine(fh)
+    line = chomp(line)
+    cols = split(line,'\t')
+    w = cols[1]
+    stem_index = parse_int(cols[3])
+    spans = seg_to_spans(split(cols[5]))
+    if has(cluster,w)
+      cluster_id = cluster[w]
+    else
+      cluster_id = "NONE"
+    end
+    tag = parse_int(cols[4])
+    ws = WordState(w,1,tag,stem_index,spans,true,true,true,cluster_id)
+    words[w] = ws
+  end
+  
+  NUM_TAGS = 5
+  SEPARATE_LEXICON_SIZE  = true
+  VALENCE_MODEL = 0
+  USE_STEM_LENGTH_CONSTRAINT = true
+  use_seq_suffix = false
+  use_seq_prefix = false
+  (counter_seg, x_counter_seg, x_fast_distrs_seg_gt, distr_type_tag, crp, has_suffixes) = get_counts(words, NUM_TAGS)
+  word_locations = fast_distr_token_gt = distrs_transition = nothing
+  tokens = ref(String)
+  word_freq = count_word_types(ones(Int, length(words)), keys(words))
+  lexicon_state = LexiconState(words, word_freq, counter_seg, x_counter_seg, x_fast_distrs_seg_gt, distr_type_tag, tokens, word_locations, fast_distr_token_gt, distrs_transition, use_seq_suffix, use_seq_prefix, NUM_TAGS, VALENCE_MODEL, USE_STEM_LENGTH_CONSTRAINT, SEPARATE_LEXICON_SIZE, crp, has_suffixes)
+end
+
+function load_model(model_file::String)
+  #cluster = read_cluster(cluster_file)
+  fh = open(model_file)
+  words = Dict{String, WordState}()
+  for line = EachLine(fh)
+    line = chomp(line)
+    cols = split(line,'\t')
+    w = cols[1]
+    stem_index = parse_int(cols[3])
+    spans = seg_to_spans(split(cols[5]))
+    cluster_id = "NONE"
+    tag = parse_int(cols[4])
+    ws = WordState(w,1,tag,stem_index,spans,true,true,true,cluster_id)
+    words[w] = ws
+  end
+  
+  NUM_TAGS = 5
+  SEPARATE_LEXICON_SIZE  = true
+  VALENCE_MODEL = 0
+  USE_STEM_LENGTH_CONSTRAINT = true
+  use_seq_suffix = false
+  use_seq_prefix = false
+  (counter_seg, x_counter_seg, x_fast_distrs_seg_gt, distr_type_tag, crp, has_suffixes) = get_counts(words, NUM_TAGS)
+  word_locations = fast_distr_token_gt = distrs_transition = nothing
+  tokens = ref(String)
+  word_freq = count_word_types(ones(Int, length(words)), keys(words))
+  lexicon_state = LexiconState(words, word_freq, counter_seg, x_counter_seg, x_fast_distrs_seg_gt, distr_type_tag, tokens, word_locations, fast_distr_token_gt, distrs_transition, use_seq_suffix, use_seq_prefix, NUM_TAGS, VALENCE_MODEL, USE_STEM_LENGTH_CONSTRAINT, SEPARATE_LEXICON_SIZE, crp, has_suffixes)
 end
 
 # print some statistics info

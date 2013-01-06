@@ -88,6 +88,13 @@ type DirichletMult
   DirichletMult(alpha) = DirichletMult(alpha, Dict(), 0)
 end
 
+function copy(p::DirichletMult)
+  alpha = p.alpha
+  counts = copy(p.counts)
+  total = p.total
+  DirichletMult(alpha, counts, total)
+end
+
 function observe(p::DirichletMult, k, v::Int)
   p.counts[k] = get(p.counts,k,0) + v
   p.total += v
@@ -176,4 +183,49 @@ function sample_from_unnormalized_logs(vals::Vector{Float64})
   @assert false
 end
 
+type ChineseRestaurantProcess
+  alpha::Float64
+  counts::Dict{String,Int}
+  total::Int
+  
+  ChineseRestaurantProcess(alpha,counts,total) = new(alpha,counts,total)
+  ChineseRestaurantProcess(alpha) = ChineseRestaurantProcess(alpha,Dict{String,Int}(),0)
+end
+
+function copy(crp::ChineseRestaurantProcess)
+  alpha = crp.alpha
+  counts = copy(crp.counts)
+  total = crp.total
+  ChineseRestaurantProcess(alpha,counts,total)
+end
+function observe(p::ChineseRestaurantProcess,k::String,c::Int)
+  p.counts[k] = get(p.counts,k,0) + c
+  p.total += c
+  @assert p.counts[k] >= 0
+  if p.counts[k] == 0
+    del(p.counts,k)
+  end   
+end
+
+function prob(p::ChineseRestaurantProcess, k::String)
+  if has(p.counts,k)
+    return p.counts[k]/(p.total + p.alpha)
+  else
+    return p.alpha/(p.total + p.alpha)
+  end
+end
+
+function log_prob(p::ChineseRestaurantProcess,k::String)
+  prob_k = prob(p,k)
+  return log(prob_k)
+end
+
+function gamma_distr(x::Float,k::Int,theta::Float)
+  @assert x >= 0 && k > 0 && theta > 0
+  theta^(-k)*(1/gamma(k))*x^(k-1)*exp(-x/theta)
+end
+
+function log_gamma(x::Float,k::Int,theta::Float)
+  log(gamma_distr(x,k,theta))
+end
 
